@@ -54,8 +54,17 @@ _reset() {
 
 static struct tunnel*
 _new(const char *name) {
+    int i;
     struct tunnel *new;
     size_t count = _tunnelscount;
+
+    /* Ensure the tunnel is not exists yet */
+    for (i = 0; i < count; i++) {
+        if (strcmp(name, _tunnels[i].name) == 0) {
+            ERROR("Duplicate tunnel name: %s", name);
+            return NULL;
+        }
+    }
 
     _tunnels = realloc(_tunnels, sizeof(struct tunnel) * (count + 1));
     if (_tunnels == NULL) {
@@ -79,28 +88,30 @@ _inihandler(void* , const char* section, const char* name,
 
     if (section == NULL) {
         ERROR("Interface name cannot be null");
-        return -1;
+        return 0;
     }
 
     if (strlen(section) > IFNAMSIZ) {
         ERROR("Interface too long");
-        return -1;
+        return 0;
+    }
+
+    if ((name == NULL) && (value == NULL)) {
+        /* New section */
+        tunnel = _new(section);
+        if (tunnel == NULL) {
+            return 0;
+        }
+
+        return 1;
     }
 
     if (_tunnelscount == 0) {
-        tunnel = _new(section);
-    }
-    else {
-        tunnel = &_tunnels[_tunnelscount - 1];
-        if (strcmp(tunnel->name, section)) {
-            tunnel = _new(section);
-        }
+        return 0;
     }
 
-    if (tunnel == NULL) {
-        return -1;
-    }
-
+    /* Updating tunnel's attributes */
+    tunnel = &_tunnels[_tunnelscount - 1];
     if (strcmp("id", name) == 0) {
         tunnel->id = atoi(value);
     }
@@ -118,21 +129,58 @@ _inihandler(void* , const char* section, const char* name,
 
 
 static int
+_conflicts() {
+    int i;
+    int j;
+    struct tunnel *ti;
+    struct tunnel *tj;
+
+    for (i = 0; i < _tunnelscount; i++) {
+        ti = _tunnels + i;
+
+        for (j = 0; j < _tunnelscount; j++) {
+            if (i == j) {
+                continue;
+            }
+            tj = _tunnels + j;
+
+            if ((ti->id == tj->id) && (ti->peer.s_addr == tj->peer.s_addr)) {
+                ERROR("Identical tunnels found: %s and %s are both defined as"
+                        " dst=%s and id=%d",
+                        ti->name, tj->name, inet_ntoa(ti->peer), ti->id);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+static int
 _loadfile(const char *filename) {
     INFO("Loading: %s", filename);
     size_t oldcount = _tunnelscount;
 
     /* Parse the ini file. */
-    if (ini_parse(filename, _inihandler, NULL) < 0) {
+    if (ini_parse(filename, _inihandler, NULL)) {
         ERROR("ini_parse");
-        return -1;
+        goto failed;
     }
 
-    for (;oldcount < _tunnelscount; oldcount++) {
-        _print(_tunnels + oldcount);
+    /* Check consistency */
+    if (_conflicts()) {
+        goto failed;
     }
 
     return 0;
+
+failed:
+    if (oldcount < _tunnelscount) {
+        _tunnels = realloc(_tunnels, sizeof(struct tunnel) * oldcount);
+        _tunnelscount = oldcount;
+    }
+    return -1;
 }
 
 
@@ -149,7 +197,7 @@ tunnels_load() {
     }
 
     _reset();
-    INFO("Looking %s for configuration files", options.configpath);
+    INFO("Looking %s for configuration files ...", options.configpath);
     while ((ep = readdir(dp)) != NULL) {
         joinpath(filename, options.configpath, ep->d_name);
         if (!isfile(filename)) {
@@ -172,8 +220,15 @@ tunnels_load() {
 
 int
 tunnels_list() {
+    int i;
+
     if (tunnels_load()) {
         return -1;
     }
+
+    for (i = 0; i < _tunnelscount; i++) {
+        _print(_tunnels + i);
+    }
+
     return 0;
 }

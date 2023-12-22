@@ -21,6 +21,7 @@ include_directories(
 
 
 # Objects
+add_library(ini OBJECT ini.c ini.h)
 add_library(options OBJECT options.c options.h)
 add_library(tunnels OBJECT tunnels.c tunnels.h)
 add_library(helpers OBJECT helpers.c helpers.h)
@@ -31,10 +32,11 @@ add_executable(eoip
     $<TARGET_OBJECTS:options> 
     $<TARGET_OBJECTS:tunnels> 
     $<TARGET_OBJECTS:helpers> 
+    $<TARGET_OBJECTS:ini> 
     eoip.c
 )
 target_include_directories(eoip PUBLIC "${PROJECT_BINARY_DIR}")
-target_link_libraries(eoip PUBLIC m clog caio inih)
+target_link_libraries(eoip PUBLIC m clog caio )
 add_custom_target(run $<TARGET_FILE:eoip>)
 add_custom_target(start $<TARGET_FILE:eoip> start)
 

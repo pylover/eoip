@@ -6,4 +6,3 @@
 
 - clog
 - caio
-- sudo apt install libinih1
