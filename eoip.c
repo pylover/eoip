@@ -36,6 +36,7 @@ main(int argc, char **argv) {
     }
 
     /* Init done */
+    clog_verbosity = options.verbosity;
     INFO("MiktoTik EoIP v%s", EOIP_VERSION);
 
     switch (options.command) {

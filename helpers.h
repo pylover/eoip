@@ -20,6 +20,9 @@
 #define HELPERS_H_
 
 
+#include <stdbool.h>
+
+
 #define DIR_SEPARATOR '/'
 
 
@@ -32,6 +35,10 @@ joinpath(char *dst, const char *pth1, const char *pth2);
 
 int
 isfile(const char *path);
+
+
+bool
+endswith(const char *str, const char *suffix);
 
 
 #endif  // HELPERS_H_

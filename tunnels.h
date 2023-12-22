@@ -23,6 +23,7 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 
+
 /*
 struct sockaddr_in {
     short            sin_family;   // e.g. AF_INET
@@ -38,7 +39,7 @@ struct in_addr {
 
 
 struct tunnel {
-    char name[IFNAMSIZ];
+    char name[IFNAMSIZ + 1];
     struct in_addr peer;
     int id;
 };

@@ -17,11 +17,14 @@
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
 #include <stdlib.h>
-#include <net/if.h>
 #include <string.h>
 #include <dirent.h>
-#include <ini.h>
+#include <net/if.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
+#include <ini.h>
 #include <clog.h>
 
 #include "tunnels.h"
@@ -34,6 +37,12 @@ static size_t _tunnelscount = 0;
 
 
 static void
+_print(struct tunnel *t) {
+    printf("%s %s %d\n", t->name, inet_ntoa(t->peer), t->id);
+}
+
+
+static void
 _reset() {
     if (_tunnels != NULL) {
         free(_tunnels);
@@ -43,31 +52,84 @@ _reset() {
 }
 
 
-static int
-_inihandler(void* user, const char* section, const char* name,
-        const char* value) {
-    // struct tunnel *tunnel = (struct tunnel*)user;
+static struct tunnel*
+_new(const char *name) {
+    struct tunnel *new;
+    size_t count = _tunnelscount;
 
-    DEBUG("%s %s %s", section, name, value);
-    // return 0;  /* unknown section/name, error */
+    _tunnels = realloc(_tunnels, sizeof(struct tunnel) * (count + 1));
+    if (_tunnels == NULL) {
+        ERROR("Out of memory");
+        return NULL;
+    }
+
+    new = _tunnels + count;
+    new->id = 0;
+    new->peer.s_addr = 0;
+    strcpy(new->name, name);
+    _tunnelscount++;
+    return new;
+}
+
+
+static int
+_inihandler(void* , const char* section, const char* name,
+        const char* value) {
+    struct tunnel *tunnel = NULL;
+
+    if (section == NULL) {
+        ERROR("Interface name cannot be null");
+        return -1;
+    }
+
+    if (strlen(section) > IFNAMSIZ) {
+        ERROR("Interface too long");
+        return -1;
+    }
+
+    if (_tunnelscount == 0) {
+        tunnel = _new(section);
+    }
+    else {
+        tunnel = &_tunnels[_tunnelscount - 1];
+        if (strcmp(tunnel->name, section)) {
+            tunnel = _new(section);
+        }
+    }
+
+    if (tunnel == NULL) {
+        return -1;
+    }
+
+    if (strcmp("id", name) == 0) {
+        tunnel->id = atoi(value);
+    }
+    else if (strcmp("dst", name) == 0) {
+        if (inet_aton(value, &tunnel->peer) == 0) {
+            ERROR("Invalid address: %s", value);
+        }
+    }
+    else {
+        ERROR("Invalid config entry: %s", name);
+    }
+
     return 1;
 }
 
 
 static int
 _loadfile(const char *filename) {
-    struct tunnel tunnel = {
-        .name = "\0",
-        .peer = {0x0},
-        .id = 0,
-    };
-
-    DEBUG("Loading: %s", filename);
+    INFO("Loading: %s", filename);
+    size_t oldcount = _tunnelscount;
 
     /* Parse the ini file. */
-    if (ini_parse(filename, _inihandler, &tunnel) < 0) {
+    if (ini_parse(filename, _inihandler, NULL) < 0) {
         ERROR("ini_parse");
         return -1;
+    }
+
+    for (;oldcount < _tunnelscount; oldcount++) {
+        _print(_tunnels + oldcount);
     }
 
     return 0;
@@ -91,6 +153,10 @@ tunnels_load() {
     while ((ep = readdir(dp)) != NULL) {
         joinpath(filename, options.configpath, ep->d_name);
         if (!isfile(filename)) {
+            continue;
+        }
+
+        if (!endswith(filename, ".ini")) {
             continue;
         }
 
