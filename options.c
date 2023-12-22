@@ -101,6 +101,7 @@ parse_opt(int key, char *arg, struct argp_state *state) {
                 if (options.command == CMD_UNKNOWN) {
                     goto reject;
                 }
+                goto success;
             }
             else if ((state->arg_num == 1) &&
                     (options.command != CMD_START)) {
@@ -121,6 +122,8 @@ parse_opt(int key, char *arg, struct argp_state *state) {
         default:
             return ARGP_ERR_UNKNOWN;
     }
+
+success:
     return 0;
 
 reject:

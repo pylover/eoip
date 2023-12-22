@@ -38,7 +38,7 @@ static size_t _tunnelscount = 0;
 
 static void
 _print(struct tunnel *t) {
-    printf("%s %s %d\n", t->name, inet_ntoa(t->peer), t->id);
+    printf("%s %s %d %s\n", t->name, inet_ntoa(t->peer), t->id, t->filename);
 }
 
 
@@ -53,7 +53,7 @@ _reset() {
 
 
 static struct tunnel*
-_new(const char *name) {
+_new(const char *name, const char *filename) {
     int i;
     struct tunnel *new;
     size_t count = _tunnelscount;
@@ -76,13 +76,14 @@ _new(const char *name) {
     new->id = 0;
     new->peer.s_addr = 0;
     strcpy(new->name, name);
+    strcpy(new->filename, filename);
     _tunnelscount++;
     return new;
 }
 
 
 static int
-_inihandler(void* , const char* section, const char* name,
+_inihandler(const char *filename , const char* section, const char* name,
         const char* value) {
     struct tunnel *tunnel = NULL;
 
@@ -98,7 +99,7 @@ _inihandler(void* , const char* section, const char* name,
 
     if ((name == NULL) && (value == NULL)) {
         /* New section */
-        tunnel = _new(section);
+        tunnel = _new(section, filename);
         if (tunnel == NULL) {
             return 0;
         }
@@ -145,9 +146,10 @@ _conflicts() {
             tj = _tunnels + j;
 
             if ((ti->id == tj->id) && (ti->peer.s_addr == tj->peer.s_addr)) {
-                ERROR("Identical tunnels found: %s and %s are both defined as"
-                        " dst=%s and id=%d",
-                        ti->name, tj->name, inet_ntoa(ti->peer), ti->id);
+                ERROR("Identical tunnels found: %s:%s and %s:%s are both "
+                        "defined as  dst=%s and id=%d",
+                        ti->filename, ti->name, tj->filename, tj->name,
+                        inet_ntoa(ti->peer), ti->id);
                 return -1;
             }
         }
@@ -158,12 +160,12 @@ _conflicts() {
 
 
 static int
-_loadfile(const char *filename) {
+_loadfile(const char *filename, const char *basename) {
     INFO("Loading: %s", filename);
     size_t oldcount = _tunnelscount;
 
     /* Parse the ini file. */
-    if (ini_parse(filename, _inihandler, NULL)) {
+    if (ini_parse(filename, (ini_handler)_inihandler, (void *)basename)) {
         ERROR("ini_parse");
         goto failed;
     }
@@ -208,7 +210,7 @@ tunnels_load() {
             continue;
         }
 
-        if (_loadfile(filename)) {
+        if (_loadfile(filename, ep->d_name)) {
             WARN("Cannot load %s", filename);
         }
     }
