@@ -16,41 +16,36 @@
  *
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef TUNNELS_H_
+#define TUNNELS_H_
 
-#include <clog.h>
 
-#include "options.h"
-#include "tunnels.h"
-#include "manifest.h"
+#include <netinet/in.h>
+#include <linux/if.h>
+
+/*
+struct sockaddr_in {
+    short            sin_family;   // e.g. AF_INET
+    unsigned short   sin_port;     // e.g. htons(3490)
+    struct in_addr   sin_addr;     // see struct in_addr, below
+    char             sin_zero[8];  // zero this if you want to
+};
+
+struct in_addr {
+    unsigned long s_addr;  // load with inet_aton()
+};
+*/
+
+
+struct tunnel {
+    char name[IFNAMSIZ];
+    struct in_addr peer;
+    int id;
+};
 
 
 int
-main(int argc, char **argv) {
-    int ret = EXIT_SUCCESS;
+tunnels_list();
 
-    /* Parse command line arguments */
-    if (options_parse(argc, argv)) {
-        return EXIT_FAILURE;
-    }
 
-    /* Init done */
-    INFO("MiktoTik EoIP v%s", EOIP_VERSION);
-
-    switch (options.command) {
-        case CMD_LIST:
-            ret = tunnels_list();
-            break;
-
-        case CMD_START:
-            DEBUG("Start, argc: %d", options.argc);
-            // TODO: Start daemon
-            break;
-
-        default:
-            ERROR("Unknown command: %s", argv[1]);
-    }
-
-    return ret;
-}
+#endif  // TUNNELS_H_

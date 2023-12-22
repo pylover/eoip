@@ -16,41 +16,22 @@
  *
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef HELPERS_H_
+#define HELPERS_H_
 
-#include <clog.h>
 
-#include "options.h"
-#include "tunnels.h"
-#include "manifest.h"
+#define DIR_SEPARATOR '/'
+
+
+#define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+
+
+void
+joinpath(char *dst, const char *pth1, const char *pth2);
 
 
 int
-main(int argc, char **argv) {
-    int ret = EXIT_SUCCESS;
+isfile(const char *path);
 
-    /* Parse command line arguments */
-    if (options_parse(argc, argv)) {
-        return EXIT_FAILURE;
-    }
 
-    /* Init done */
-    INFO("MiktoTik EoIP v%s", EOIP_VERSION);
-
-    switch (options.command) {
-        case CMD_LIST:
-            ret = tunnels_list();
-            break;
-
-        case CMD_START:
-            DEBUG("Start, argc: %d", options.argc);
-            // TODO: Start daemon
-            break;
-
-        default:
-            ERROR("Unknown command: %s", argv[1]);
-    }
-
-    return ret;
-}
+#endif  // HELPERS_H_

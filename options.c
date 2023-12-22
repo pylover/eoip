@@ -27,7 +27,7 @@
 #include "manifest.h"
 
 
-#define CONFIGPATH_DEFAULT "/etc/eoip/"
+#define CONFIGPATH_DEFAULT "/etc/eoip.d/"
 
 
 struct options options = {
@@ -126,6 +126,7 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 reject:
     // exit the process
     argp_usage(state);
+    return -1;
 }
 
 
