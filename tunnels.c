@@ -17,9 +17,13 @@
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <string.h>
 #include <dirent.h>
 #include <net/if.h>
+#include <linux/if_tun.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -39,6 +43,62 @@ static size_t _tunnelscount = 0;
 static void
 _print(struct tunnel *t) {
     printf("%s %s %d %s\n", t->name, inet_ntoa(t->peer), t->id, t->filename);
+}
+
+
+static void
+_close(struct tunnel *t) {
+    if (t->fd == -1) {
+        return;
+    }
+
+    close(t->fd);
+}
+
+
+static int
+_open(struct tunnel *t) {
+    struct ifreq ifr;
+    int fd;
+
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        ERROR("socket()");
+        return -1;
+    }
+
+    t->fd = open("/dev/net/tun", O_RDWR);
+    if (t->fd < 0) {
+	    ERROR("open_tun: /dev/net/tun");
+        goto failed;
+    }
+
+    memset(&ifr, 0x0, sizeof(ifr));
+
+    ifr.ifr_flags = IFF_TAP|IFF_NO_PI;
+	strncpy(ifr.ifr_name, t->name, IFNAMSIZ);
+
+    if (ioctl(t->fd, TUNSETIFF, (void *)&ifr) < 0) {
+        ERROR("ioctl-1");
+        goto failed;
+    }
+
+    ifr.ifr_flags |= IFF_UP;
+    ifr.ifr_flags |= IFF_RUNNING;
+
+    if (ioctl(fd, SIOCSIFFLAGS, (void *)&ifr) < 0) {
+        ERROR("ioctl-2");
+        goto failed;
+    }
+    close(fd);
+    return 0;
+
+failed:
+    close(fd);
+    if (t->fd > 0) {
+        close(t->fd);
+    }
+    return -1;
 }
 
 
@@ -64,6 +124,7 @@ _new(const char *name, const char *filename) {
 
     new = _tunnels + count;
     new->id = 0;
+    new->fd = -1;
     new->peer.s_addr = 0;
     strcpy(new->name, name);
     strcpy(new->filename, filename);
@@ -229,4 +290,31 @@ tunnels_list() {
     }
 
     return 0;
+}
+
+
+void
+tunnels_closeall() {
+    int i;
+
+    for (i = 0; i < _tunnelscount; i++) {
+        _close(_tunnels + i);
+    }
+}
+
+
+int
+tunnels_openall() {
+    int i;
+
+    for (i = 0; i < _tunnelscount; i++) {
+        if (_open(_tunnels + i)) {
+            goto failed;
+        }
+    }
+
+    return 0;
+failed:
+    tunnels_closeall();
+    return -1;
 }

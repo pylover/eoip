@@ -26,6 +26,12 @@
 #include "manifest.h"
 
 
+static int
+_start() {
+    return -1;
+}
+
+
 int
 main(int argc, char **argv) {
     int ret = EXIT_SUCCESS;
@@ -49,8 +55,7 @@ main(int argc, char **argv) {
             break;
 
         case CMD_START:
-            DEBUG("Start, argc: %d", options.argc);
-            // TODO: Start daemon
+            ret = _start();
             break;
 
         default:

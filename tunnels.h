@@ -43,6 +43,7 @@ struct tunnel {
     char filename[256];
     struct in_addr peer;
     int id;
+    int fd;
 };
 
 
@@ -56,6 +57,10 @@ tunnels_dispose();
 
 int
 tunnels_load();
+
+
+int
+tunnels_openall();
 
 
 #endif  // TUNNELS_H_
