@@ -1,14 +1,34 @@
+// Copyright 2023 vahid mardani
+/*
+ * This file is part of eoip.
+ *  eoip is free software: you can redistribute it and/or modify it under
+ *  the terms of the GNU General Public License as published by the Free
+ *  Software Foundation, either version 3 of the License, or (at your option)
+ *  any later version.
+ *
+ *  eoip is distributed in the hope that it will be useful, but WITHOUT ANY
+ *  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ *  FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ *  details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with eoip. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *  Author: Vahid Mardani <vahid.mardani@gmail.com>
+ */
+#include <unistd.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <errno.h>
 
 #include <clog.h>
 
 #include "transport.h"
+#include "options.h"
 
 
-// static int sockfd = -1;
+static int sockfd = -1;
 
 
 int
@@ -26,24 +46,38 @@ transport_create() {
             ERROR("raw socket()");
         }
 
-        return -1;
+        goto failed;
     }
 
     if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) < 0) {
-	    ERROR("setsockopt(RCVBUF)");
-    }
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) < 0) {
-        DEBUG("setsockopt(SNDBUF)");
-    }
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-        ERROR("setsockopt(SO_REUSEADDR)");
+        ERROR("setsockopt(RCVBUF)");
+        goto failed;
     }
 
-    // /* Bind */
-    // if (bind(thr_rx_data.raw_socket, (struct sockaddr *) &serv_addr,
-    //     sizeof(serv_addr)) < 0) {
-    //     ERROR("bind(%s:%d)", inet_ntoa(options.bind);
-    // }
-    //
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) < 0) {
+        ERROR("setsockopt(SNDBUF)");
+        goto failed;
+    }
+
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        ERROR("setsockopt(SO_REUSEADDR)");
+        goto failed;
+    }
+
+    /* Bind */
+    if (options.bind.s_addr && bind(fd, (struct sockaddr*) &options.bind,
+                sizeof(struct sockaddr))) {
+        ERROR("bind(%s:%d)", inet_ntoa(options.bind));
+        goto failed;
+    }
+
+    sockfd = fd;
     return 0;
+
+failed:
+    if (fd > -1) {
+        close(fd);
+        fd = -1;
+    }
+    return -1;
 }

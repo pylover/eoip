@@ -70,14 +70,14 @@ _open(struct tunnel *t) {
 
     t->fd = open("/dev/net/tun", O_RDWR);
     if (t->fd < 0) {
-	    ERROR("open_tun: /dev/net/tun");
+        ERROR("open_tun: /dev/net/tun");
         goto failed;
     }
 
     memset(&ifr, 0x0, sizeof(ifr));
 
     ifr.ifr_flags = IFF_TAP|IFF_NO_PI;
-	strncpy(ifr.ifr_name, t->name, IFNAMSIZ);
+    strncpy(ifr.ifr_name, t->name, IFNAMSIZ);
 
     if (ioctl(t->fd, TUNSETIFF, (void *)&ifr) < 0) {
         ERROR("ioctl-1");
