@@ -25,6 +25,7 @@ add_library(ini OBJECT ini.c ini.h)
 add_library(options OBJECT options.c options.h)
 add_library(tunnels OBJECT tunnels.c tunnels.h)
 add_library(helpers OBJECT helpers.c helpers.h)
+add_library(transport OBJECT transport.c transport.h)
 
 
 # Entrypoint
@@ -32,6 +33,7 @@ add_executable(eoip
     $<TARGET_OBJECTS:options> 
     $<TARGET_OBJECTS:tunnels> 
     $<TARGET_OBJECTS:helpers> 
+    $<TARGET_OBJECTS:transport> 
     $<TARGET_OBJECTS:ini> 
     eoip.c
 )

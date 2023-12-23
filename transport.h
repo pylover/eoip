@@ -16,35 +16,9 @@
  *
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
-#ifndef OPTIONS_H_
-#define OPTIONS_H_
+#ifndef TRANSPORT_H_
+#define TRANSPORT_H_
 
 
-#include <netinet/in.h>
 
-
-enum command {
-    CMD_UNKNOWN,
-    CMD_LIST,
-    CMD_START,
-};
-
-
-struct options {
-    enum command command;
-    unsigned char verbosity;
-    char *configpath;
-    struct in_addr bind;
-    char *argv[1];
-    int argc;
-};
-
-
-extern struct options options;
-
-
-int
-options_parse(int argc, char **argv);
-
-
-#endif  // OPTIONS_H_
+#endif  // TRANSPORT_H_

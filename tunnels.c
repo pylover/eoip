@@ -53,6 +53,7 @@ _close(struct tunnel *t) {
     }
 
     close(t->fd);
+    t->fd = -1;
 }
 
 

@@ -28,6 +28,8 @@
 
 static int
 _start() {
+    // TODO: create raw socket
+    // TODO: create tunnel interface
     return -1;
 }
 

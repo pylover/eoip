@@ -21,6 +21,9 @@
 #include <argp.h>
 #include <stdint.h>
 #include <net/if.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "options.h"
 #include "clog.h"
@@ -61,6 +64,13 @@ static struct argp_option opts[] = {
         0,
         "Configuration path, default: " CONFIGPATH_DEFAULT " (if exists)"
     },
+    {
+        "bind",
+        'b',
+        "ADDRESS",
+        0,
+        "Bind address, default: 0"
+    },
     {NULL}
 };
 
@@ -93,6 +103,17 @@ parse_opt(int key, char *arg, struct argp_state *state) {
             if (options.verbosity > 5) {
                 goto reject;
             }
+            break;
+
+        case 'b':
+            if (inet_aton(arg, &options.bind)) {
+                ERROR("Invalid bind address: %s", arg? arg: "(null)");
+                goto reject;
+            }
+            break;
+
+        case 'c':
+            options.configpath = arg;
             break;
 
         case ARGP_KEY_ARG:
