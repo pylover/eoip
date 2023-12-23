@@ -39,6 +39,10 @@ main(int argc, char **argv) {
     clog_verbosity = options.verbosity;
     INFO("MiktoTik EoIP v%s", EOIP_VERSION);
 
+    if (tunnels_load()) {
+        return EXIT_FAILURE;
+    }
+
     switch (options.command) {
         case CMD_LIST:
             ret = tunnels_list();
@@ -53,5 +57,6 @@ main(int argc, char **argv) {
             ERROR("Unknown command: %s", argv[1]);
     }
 
+    tunnels_dispose();
     return ret;
 }

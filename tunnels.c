@@ -42,16 +42,6 @@ _print(struct tunnel *t) {
 }
 
 
-static void
-_reset() {
-    if (_tunnels != NULL) {
-        free(_tunnels);
-    }
-
-    _tunnelscount = 0;
-}
-
-
 static struct tunnel*
 _new(const char *name, const char *filename) {
     int i;
@@ -186,6 +176,16 @@ failed:
 }
 
 
+void
+tunnels_dispose() {
+    if (_tunnels != NULL) {
+        free(_tunnels);
+    }
+
+    _tunnelscount = 0;
+}
+
+
 int
 tunnels_load() {
     DIR *dp;
@@ -198,7 +198,7 @@ tunnels_load() {
         return -1;
     }
 
-    _reset();
+    tunnels_dispose();
     INFO("Looking %s for configuration files ...", options.configpath);
     while ((ep = readdir(dp)) != NULL) {
         joinpath(filename, options.configpath, ep->d_name);
@@ -223,10 +223,6 @@ tunnels_load() {
 int
 tunnels_list() {
     int i;
-
-    if (tunnels_load()) {
-        return -1;
-    }
 
     for (i = 0; i < _tunnelscount; i++) {
         _print(_tunnels + i);

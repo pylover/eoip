@@ -50,4 +50,12 @@ int
 tunnels_list();
 
 
+void
+tunnels_dispose();
+
+
+int
+tunnels_load();
+
+
 #endif  // TUNNELS_H_
