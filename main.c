@@ -26,7 +26,7 @@
 int
 main(int argc, char **argv) {
     int ret = EXIT_SUCCESS;
-    struct tunnelset tunnels;
+    struct tunnelset tunnels = {.first = NULL, .count = 0};
 
     /* Parse command line arguments */
     if (options_parse(argc, argv)) {

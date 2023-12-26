@@ -36,7 +36,7 @@
 
 
 static struct tunnel*
-_new(struct tunnelset *tunnels, const char *name, const char *filename) {
+_new(struct tunnelset *tunnels, const char *name) {
     int i;
     struct tunnel *new;
     size_t count = tunnels->count;
@@ -61,7 +61,6 @@ _new(struct tunnelset *tunnels, const char *name, const char *filename) {
     new->fd = -1;
     new->peer.s_addr = 0;
     strcpy(new->name, name);
-    strcpy(new->filename, filename);
     tunnels->count++;
     return new;
 }
@@ -71,7 +70,6 @@ static int
 _inihandler(struct tunnelset *tunnels, const char* section, const char* name,
         const char* value) {
     struct tunnel *tunnel = NULL;
-    const char *filename = "foo.ini";
 
     if (section == NULL) {
         ERROR("Interface name cannot be null");
@@ -85,8 +83,7 @@ _inihandler(struct tunnelset *tunnels, const char* section, const char* name,
 
     if ((name == NULL) && (value == NULL)) {
         /* New section */
-        // TODO: set filename by modifying ini.c
-        tunnel = _new(tunnels, section, filename);
+        tunnel = _new(tunnels, section);
         if (tunnel == NULL) {
             return 0;
         }
@@ -133,10 +130,8 @@ _conflicts(struct tunnelset *tunnels) {
             tj = tunnels->first + j;
 
             if ((ti->id == tj->id) && (ti->peer.s_addr == tj->peer.s_addr)) {
-                ERROR("Identical tunnels found: %s:%s and %s:%s are both "
-                        "defined as  dst=%s and id=%d",
-                        ti->filename, ti->name, tj->filename, tj->name,
-                        inet_ntoa(ti->peer), ti->id);
+                ERROR("Identical tunnels found: %s and %s are both "
+                        "defined with id=%d", ti->name, tj->name, ti->id);
                 return -1;
             }
         }
@@ -149,11 +144,11 @@ _conflicts(struct tunnelset *tunnels) {
 static int
 _loadfile(struct tunnelset *tunnels, const char *filename,
         const char *basename) {
-    INFO("Loading: %s", filename);
     size_t oldcount = tunnels->count;
+    INFO("Loading: %s", filename);
 
     /* Parse the ini file. */
-    if (ini_parse(filename, (ini_handler)_inihandler, (void *)basename)) {
+    if (ini_parse(filename, (ini_handler)_inihandler, tunnels)) {
         ERROR("ini_parse");
         goto failed;
     }

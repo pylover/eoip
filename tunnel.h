@@ -42,7 +42,6 @@ struct in_addr {
 
 struct tunnel {
     char name[IFNAMSIZ + 1];
-    char filename[256];
     struct in_addr peer;
     int id;
     int fd;

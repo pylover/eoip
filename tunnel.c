@@ -11,8 +11,7 @@
 
 int
 tunnel_print(struct tunnel *t) {
-    return printf("%s %s %d %s\n", t->name, inet_ntoa(t->peer), t->id,
-            t->filename);
+    return printf("%s %s %d\n", t->name, inet_ntoa(t->peer), t->id);
 }
 
 
