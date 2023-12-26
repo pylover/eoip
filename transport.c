@@ -23,61 +23,62 @@
 #include <arpa/inet.h>
 
 #include <clog.h>
+#include <caio/caio.h>
 
 #include "transport.h"
 #include "options.h"
 
 
-static int sockfd = -1;
+#undef CAIO_ARG1
+#undef CAIO_ARG2
+#undef CAIO_ENTITY
+#define CAIO_ENTITY transport
+#include <caio/generic.c>
 
 
-int
-transport_create() {
-    int fd;
+ASYNC
+transportA(struct caio_task *self, struct transport *t) {
     const int enable = 1;
     const int bsize = 262144;
+    CAIO_BEGIN(self);
 
-    fd = socket(PF_INET, SOCK_RAW, 47);
-    if (fd == -1) {
+    t->fd = socket(PF_INET, SOCK_RAW, 47);
+    if (t->fd == -1) {
         if (errno == EPERM) {
-            ERROR("You need root privileges or CAP_NET_RAW capability to run "
-                    "this program");
+            ERROR("You need root privileges or CAP_NET_RAW "
+                    "capability to run this program");
         } else {
             ERROR("raw socket()");
         }
-
-        goto failed;
+        CAIO_THROW(self, errno);
     }
 
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) < 0) {
+    if (setsockopt(t->fd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) < 0) {
         ERROR("setsockopt(RCVBUF)");
-        goto failed;
+        CAIO_THROW(self, errno);
     }
 
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) < 0) {
+    if (setsockopt(t->fd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) < 0) {
         ERROR("setsockopt(SNDBUF)");
-        goto failed;
+        CAIO_THROW(self, errno);
     }
 
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+    if (setsockopt(t->fd, SOL_SOCKET, SO_REUSEADDR, &enable,
+                sizeof(int)) < 0) {
         ERROR("setsockopt(SO_REUSEADDR)");
-        goto failed;
+        CAIO_THROW(self, errno);
     }
 
     /* Bind */
-    if (options.bind.s_addr && bind(fd, (struct sockaddr*) &options.bind,
+    if (options.bind.s_addr && bind(t->fd, (struct sockaddr*) &options.bind,
                 sizeof(struct sockaddr))) {
-        ERROR("bind(%s:%d)", inet_ntoa(options.bind));
-        goto failed;
+        ERROR("bind(%s)", inet_ntoa(options.bind));
+        CAIO_THROW(self, errno);
     }
 
-    sockfd = fd;
-    return 0;
-
-failed:
-    if (fd > -1) {
-        close(fd);
-        fd = -1;
+    CAIO_FINALLY(self);
+    if (t->fd > -1) {
+        close(t->fd);
+        t->fd = -1;
     }
-    return -1;
 }

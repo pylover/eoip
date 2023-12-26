@@ -16,27 +16,34 @@
  *
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
-#ifndef TRANSPORT_H_
-#define TRANSPORT_H_
+#ifndef TUNNELSET_H_
+#define TUNNELSET_H_
 
 
-#include <caio/caio.h>
+struct tunnelset {
+    struct tunnel *first;
+    unsigned char count;
+};
 
 
-typedef struct transport {
-    int fd;
-} transport_t;
+int
+tunnelset_load(struct tunnelset *tunnels);
 
 
-#undef CAIO_ARG1
-#undef CAIO_ARG2
-#undef CAIO_ENTITY
-#define CAIO_ENTITY transport
-#include <caio/generic.h>
+int
+tunnelset_openall(struct tunnelset *tunnels);
 
 
-ASYNC
-transportA(struct caio_task *self, struct transport *t);
+void
+tunnelset_closeall(struct tunnelset *tunnels);
 
 
-#endif  // TRANSPORT_H_
+int
+tunnelset_print(struct tunnelset *tunnels);
+
+
+void
+tunnelset_dispose(struct tunnelset *tunnels);
+
+
+#endif  // TUNNELSET_H_

@@ -20,50 +20,49 @@
 #include <stdlib.h>
 
 #include <clog.h>
+#include <caio/caio.h>
 
-#include "options.h"
-#include "tunnels.h"
+#include "tunnel.h"
+#include "tunnelset.h"
 #include "manifest.h"
+#include "protocol.h"
+#include "transport.h"
 
 
-static int
-_start() {
-    // TODO: create raw socket
-    // TODO: create tunnel interface
-    return -1;
+#undef CAIO_ARG1
+#undef CAIO_ARG2
+#undef CAIO_ENTITY
+#define CAIO_ENTITY eoip
+#include <caio/generic.c>
+
+
+static ASYNC
+eoipA(struct caio_task *self, struct eoip *eoip) {
+    CAIO_BEGIN(self);
+
+    AWAIT(self, transport, transportA, &eoip->transport);
+    CAIO_FINALLY(self);
 }
 
 
 int
-main(int argc, char **argv) {
-    int ret = EXIT_SUCCESS;
+protocol(struct tunnelset *tunnels) {
+    int ret;
+    static struct eoip *eoip = NULL;
 
-    /* Parse command line arguments */
-    if (options_parse(argc, argv)) {
-        return EXIT_FAILURE;
+    if (eoip == NULL) {
+        eoip = malloc(sizeof(struct eoip));
+        if (eoip == NULL) {
+            ERROR("Out of memory");
+            return -1;
+        }
     }
 
-    /* Init done */
-    clog_verbosity = options.verbosity;
-    INFO("MiktoTik EoIP v%s", EOIP_VERSION);
+    eoip->tunnels = tunnels;
+    ret = eoip_forever(eoipA, eoip, tunnels->count + 3, CAIO_SIG);
 
-    if (tunnels_load()) {
-        return EXIT_FAILURE;
+    if (eoip) {
+        free(eoip);
     }
-
-    switch (options.command) {
-        case CMD_LIST:
-            ret = tunnels_list();
-            break;
-
-        case CMD_START:
-            ret = _start();
-            break;
-
-        default:
-            ERROR("Unknown command: %s", argv[1]);
-    }
-
-    tunnels_dispose();
     return ret;
 }

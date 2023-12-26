@@ -16,53 +16,29 @@
  *
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
-#ifndef TUNNELS_H_
-#define TUNNELS_H_
+#ifndef PROTOCOL_H_
+#define PROTOCOL_H_
 
-
-#include <netinet/in.h>
-#include <linux/if.h>
 
 #include "transport.h"
+#include "tunnelset.h"
 
 
-/*
-struct sockaddr_in {
-    short            sin_family;   // e.g. AF_INET
-    unsigned short   sin_port;     // e.g. htons(3490)
-    struct in_addr   sin_addr;     // see struct in_addr, below
-    char             sin_zero[8];  // zero this if you want to
-};
-
-struct in_addr {
-    unsigned long s_addr;  // load with inet_aton()
-};
-*/
+typedef struct eoip {
+    struct transport transport;
+    struct tunnelset *tunnels;
+} eoip_t;
 
 
-struct tunnel {
-    char name[IFNAMSIZ + 1];
-    char filename[256];
-    struct in_addr peer;
-    int id;
-    int fd;
-};
+#undef CAIO_ARG1
+#undef CAIO_ARG2
+#undef CAIO_ENTITY
+#define CAIO_ENTITY eoip
+#include <caio/generic.h>
 
 
 int
-tunnels_list();
+protocol(struct tunnelset *tunnels);
 
 
-void
-tunnels_dispose();
-
-
-int
-tunnels_load();
-
-
-int
-tunnels_openall();
-
-
-#endif  // TUNNELS_H_
+#endif  // PROTOCOL_H_

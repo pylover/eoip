@@ -17,127 +17,61 @@
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
 #include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
+// #include <unistd.h>
+// #include <string.h>
 #include <dirent.h>
-#include <net/if.h>
-#include <linux/if_tun.h>
-#include <sys/ioctl.h>
+// #include <net/if.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+//
 #include <ini.h>
 #include <clog.h>
-
-#include "tunnels.h"
+//
+// #include "tunnels.h"
 #include "options.h"
 #include "helpers.h"
-
-
-static struct tunnel *_tunnels = NULL;
-static size_t _tunnelscount = 0;
-
-
-static void
-_print(struct tunnel *t) {
-    printf("%s %s %d %s\n", t->name, inet_ntoa(t->peer), t->id, t->filename);
-}
-
-
-static void
-_close(struct tunnel *t) {
-    if (t->fd == -1) {
-        return;
-    }
-
-    close(t->fd);
-    t->fd = -1;
-}
-
-
-static int
-_open(struct tunnel *t) {
-    struct ifreq ifr;
-    int fd;
-
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        ERROR("socket()");
-        return -1;
-    }
-
-    t->fd = open("/dev/net/tun", O_RDWR);
-    if (t->fd < 0) {
-        ERROR("open_tun: /dev/net/tun");
-        goto failed;
-    }
-
-    memset(&ifr, 0x0, sizeof(ifr));
-
-    ifr.ifr_flags = IFF_TAP|IFF_NO_PI;
-    strncpy(ifr.ifr_name, t->name, IFNAMSIZ);
-
-    if (ioctl(t->fd, TUNSETIFF, (void *)&ifr) < 0) {
-        ERROR("ioctl-1");
-        goto failed;
-    }
-
-    ifr.ifr_flags |= IFF_UP;
-    ifr.ifr_flags |= IFF_RUNNING;
-
-    if (ioctl(fd, SIOCSIFFLAGS, (void *)&ifr) < 0) {
-        ERROR("ioctl-2");
-        goto failed;
-    }
-    close(fd);
-    return 0;
-
-failed:
-    close(fd);
-    if (t->fd > 0) {
-        close(t->fd);
-    }
-    return -1;
-}
+#include "tunnel.h"
+#include "tunnelset.h"
 
 
 static struct tunnel*
-_new(const char *name, const char *filename) {
+_new(struct tunnelset *tunnels, const char *name, const char *filename) {
     int i;
     struct tunnel *new;
-    size_t count = _tunnelscount;
+    size_t count = tunnels->count;
 
     /* Ensure the tunnel is not exists yet */
     for (i = 0; i < count; i++) {
-        if (strcmp(name, _tunnels[i].name) == 0) {
+        if (strcmp(name, tunnels->first[i].name) == 0) {
             ERROR("Duplicate tunnel name: %s", name);
             return NULL;
         }
     }
 
-    _tunnels = realloc(_tunnels, sizeof(struct tunnel) * (count + 1));
-    if (_tunnels == NULL) {
+    tunnels->first = realloc(tunnels->first,
+            sizeof(struct tunnel) * (count + 1));
+    if (tunnels->first == NULL) {
         ERROR("Out of memory");
         return NULL;
     }
 
-    new = _tunnels + count;
+    new = tunnels->first + count;
     new->id = 0;
     new->fd = -1;
     new->peer.s_addr = 0;
     strcpy(new->name, name);
     strcpy(new->filename, filename);
-    _tunnelscount++;
+    tunnels->count++;
     return new;
 }
 
 
 static int
-_inihandler(const char *filename , const char* section, const char* name,
+_inihandler(struct tunnelset *tunnels, const char* section, const char* name,
         const char* value) {
     struct tunnel *tunnel = NULL;
+    const char *filename = "foo.ini";
 
     if (section == NULL) {
         ERROR("Interface name cannot be null");
@@ -151,7 +85,8 @@ _inihandler(const char *filename , const char* section, const char* name,
 
     if ((name == NULL) && (value == NULL)) {
         /* New section */
-        tunnel = _new(section, filename);
+        // TODO: set filename by modifying ini.c
+        tunnel = _new(tunnels, section, filename);
         if (tunnel == NULL) {
             return 0;
         }
@@ -159,12 +94,12 @@ _inihandler(const char *filename , const char* section, const char* name,
         return 1;
     }
 
-    if (_tunnelscount == 0) {
+    if (tunnels->count == 0) {
         return 0;
     }
 
     /* Updating tunnel's attributes */
-    tunnel = &_tunnels[_tunnelscount - 1];
+    tunnel = &tunnels->first[tunnels->count - 1];
     if (strcmp("id", name) == 0) {
         tunnel->id = atoi(value);
     }
@@ -182,20 +117,20 @@ _inihandler(const char *filename , const char* section, const char* name,
 
 
 static int
-_conflicts() {
+_conflicts(struct tunnelset *tunnels) {
     int i;
     int j;
     struct tunnel *ti;
     struct tunnel *tj;
 
-    for (i = 0; i < _tunnelscount; i++) {
-        ti = _tunnels + i;
+    for (i = 0; i < tunnels->count; i++) {
+        ti = tunnels->first + i;
 
-        for (j = 0; j < _tunnelscount; j++) {
+        for (j = 0; j < tunnels->count; j++) {
             if (i == j) {
                 continue;
             }
-            tj = _tunnels + j;
+            tj = tunnels->first + j;
 
             if ((ti->id == tj->id) && (ti->peer.s_addr == tj->peer.s_addr)) {
                 ERROR("Identical tunnels found: %s:%s and %s:%s are both "
@@ -212,9 +147,10 @@ _conflicts() {
 
 
 static int
-_loadfile(const char *filename, const char *basename) {
+_loadfile(struct tunnelset *tunnels, const char *filename,
+        const char *basename) {
     INFO("Loading: %s", filename);
-    size_t oldcount = _tunnelscount;
+    size_t oldcount = tunnels->count;
 
     /* Parse the ini file. */
     if (ini_parse(filename, (ini_handler)_inihandler, (void *)basename)) {
@@ -223,33 +159,34 @@ _loadfile(const char *filename, const char *basename) {
     }
 
     /* Check consistency */
-    if (_conflicts()) {
+    if (_conflicts(tunnels)) {
         goto failed;
     }
 
     return 0;
 
 failed:
-    if (oldcount < _tunnelscount) {
-        _tunnels = realloc(_tunnels, sizeof(struct tunnel) * oldcount);
-        _tunnelscount = oldcount;
+    if (oldcount < tunnels->count) {
+        tunnels->first = realloc(tunnels->first,
+                sizeof(struct tunnel) * oldcount);
+        tunnels->count = oldcount;
     }
     return -1;
 }
 
 
 void
-tunnels_dispose() {
-    if (_tunnels != NULL) {
-        free(_tunnels);
+tunnelset_dispose(struct tunnelset *tunnels) {
+    if (tunnels->first != NULL) {
+        free(tunnels->first);
     }
 
-    _tunnelscount = 0;
+    tunnels->count = 0;
 }
 
 
 int
-tunnels_load() {
+tunnelset_load(struct tunnelset *tunnels) {
     DIR *dp;
     struct dirent *ep;
     char filename[1024];
@@ -260,7 +197,7 @@ tunnels_load() {
         return -1;
     }
 
-    tunnels_dispose();
+    tunnelset_dispose(tunnels);
     INFO("Looking %s for configuration files ...", options.configpath);
     while ((ep = readdir(dp)) != NULL) {
         joinpath(filename, options.configpath, ep->d_name);
@@ -272,7 +209,7 @@ tunnels_load() {
             continue;
         }
 
-        if (_loadfile(filename, ep->d_name)) {
+        if (_loadfile(tunnels, filename, ep->d_name)) {
             WARN("Cannot load %s", filename);
         }
     }
@@ -283,11 +220,11 @@ tunnels_load() {
 
 
 int
-tunnels_list() {
+tunnelset_print(struct tunnelset *tunnels) {
     int i;
 
-    for (i = 0; i < _tunnelscount; i++) {
-        _print(_tunnels + i);
+    for (i = 0; i < tunnels->count; i++) {
+        tunnel_print(tunnels->first + i);
     }
 
     return 0;
@@ -295,27 +232,27 @@ tunnels_list() {
 
 
 void
-tunnels_closeall() {
+tunnelset_closeall(struct tunnelset *tunnels) {
     int i;
 
-    for (i = 0; i < _tunnelscount; i++) {
-        _close(_tunnels + i);
+    for (i = 0; i < tunnels->count; i++) {
+        tunnel_close(tunnels->first + i);
     }
 }
 
 
 int
-tunnels_openall() {
+tunnelset_openall(struct tunnelset *tunnels) {
     int i;
 
-    for (i = 0; i < _tunnelscount; i++) {
-        if (_open(_tunnels + i)) {
+    for (i = 0; i < tunnels->count; i++) {
+        if (tunnel_open(tunnels->first + i)) {
             goto failed;
         }
     }
 
     return 0;
 failed:
-    tunnels_closeall();
+    tunnelset_closeall(tunnels);
     return -1;
 }

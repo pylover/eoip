@@ -16,27 +16,47 @@
  *
  *  Author: Vahid Mardani <vahid.mardani@gmail.com>
  */
-#ifndef TRANSPORT_H_
-#define TRANSPORT_H_
+#ifndef TUNNEL_H_
+#define TUNNEL_H_
 
 
-#include <caio/caio.h>
+#include <netinet/in.h>
+#include <linux/if.h>
+
+#include "transport.h"
 
 
-typedef struct transport {
+/*
+struct sockaddr_in {
+    short            sin_family;   // e.g. AF_INET
+    unsigned short   sin_port;     // e.g. htons(3490)
+    struct in_addr   sin_addr;     // see struct in_addr, below
+    char             sin_zero[8];  // zero this if you want to
+};
+
+struct in_addr {
+    unsigned long s_addr;  // load with inet_aton()
+};
+*/
+
+
+struct tunnel {
+    char name[IFNAMSIZ + 1];
+    char filename[256];
+    struct in_addr peer;
+    int id;
     int fd;
-} transport_t;
+};
 
 
-#undef CAIO_ARG1
-#undef CAIO_ARG2
-#undef CAIO_ENTITY
-#define CAIO_ENTITY transport
-#include <caio/generic.h>
+int
+tunnel_open(struct tunnel *t);
 
 
-ASYNC
-transportA(struct caio_task *self, struct transport *t);
+void
+tunnel_close(struct tunnel *t);
 
 
-#endif  // TRANSPORT_H_
+int
+tunnel_print(struct tunnel *t);
+#endif  // TUNNEL_H_
