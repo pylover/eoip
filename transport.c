@@ -33,7 +33,7 @@
 #undef CAIO_ARG2
 #undef CAIO_ENTITY
 #define CAIO_ENTITY transport
-#include <caio/generic.c>
+#include <caio/generic.c>  // NOLINT
 
 
 ASYNC

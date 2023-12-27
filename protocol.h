@@ -34,7 +34,7 @@ typedef struct eoip {
 #undef CAIO_ARG2
 #undef CAIO_ENTITY
 #define CAIO_ENTITY eoip
-#include <caio/generic.h>
+#include <caio/generic.h>  // NOLINT
 
 
 int

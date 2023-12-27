@@ -33,7 +33,7 @@
 #undef CAIO_ARG2
 #undef CAIO_ENTITY
 #define CAIO_ENTITY eoip
-#include <caio/generic.c>
+#include <caio/generic.c>  // NOLINT
 
 
 static ASYNC
