@@ -40,16 +40,25 @@ struct in_addr {
 */
 
 
-struct tunnel {
+typedef struct tunnel {
     char name[IFNAMSIZ + 1];
     struct in_addr peer;
     int id;
     int fd;
-};
+} tunnel_t;
 
 
-int
-tunnel_open(struct tunnel *t);
+#undef CAIO_ARG1
+#undef CAIO_ARG2
+#undef CAIO_ENTITY
+#define CAIO_ENTITY tunnel
+#define CAIO_ARG1 struct transport*
+#include <caio/generic.h>  // NOLINT
+
+
+ASYNC
+tunnelA(caiotask_t *self, struct tunnel *t,
+        struct transport *transport);
 
 
 void

@@ -27,6 +27,7 @@ int
 main(int argc, char **argv) {
     int ret = EXIT_SUCCESS;
     struct tunnelset tunnels = {.first = NULL, .count = 0};
+    struct transport transport;
 
     /* Parse command line arguments */
     if (options_parse(argc, argv)) {
@@ -47,7 +48,7 @@ main(int argc, char **argv) {
             break;
 
         case CMD_START:
-            ret = protocol(&tunnels);
+            ret = protocol(&tunnels, &transport);
             break;
 
         default:

@@ -37,7 +37,7 @@
 
 
 ASYNC
-transportA(struct caio_task *self, struct transport *t) {
+transport_initA(struct caio_task *self, struct transport *t) {
     const int enable = 1;
     const int bsize = 262144;
     CAIO_BEGIN(self);

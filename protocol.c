@@ -33,20 +33,30 @@
 #undef CAIO_ARG2
 #undef CAIO_ENTITY
 #define CAIO_ENTITY eoip
+#define CAIO_ARG1 struct tunnelset*
+#define CAIO_ARG2 struct transport*
 #include <caio/generic.c>  // NOLINT
 
 
 static ASYNC
-eoipA(struct caio_task *self, struct eoip *eoip) {
+eoipA(struct caio_task *self, struct eoip *eoip, struct tunnelset *tunnels,
+        struct transport *transport) {
+    static int i;
     CAIO_BEGIN(self);
 
-    AWAIT(self, transport, transportA, &eoip->transport);
+    /* Initialize transport */
+    AWAIT(self, transport, transport_initA, transport);
+
+    /* Openning all tunnel devices */
+    for (i = 0; i < tunnels->count; i++) {
+        AWAIT(self, tunnel, tunnelA, tunnels->first + i, transport);
+    }
     CAIO_FINALLY(self);
 }
 
 
 int
-protocol(struct tunnelset *tunnels) {
+protocol(struct tunnelset *tunnels, struct transport *transport) {
     int ret;
     static struct eoip *eoip = NULL;
 
@@ -58,8 +68,8 @@ protocol(struct tunnelset *tunnels) {
         }
     }
 
-    eoip->tunnels = tunnels;
-    ret = eoip_forever(eoipA, eoip, tunnels->count + 3, CAIO_SIG);
+    ret = eoip_forever(eoipA, eoip, tunnels, transport,
+            tunnels->count + 3, CAIO_SIG);
 
     if (eoip) {
         free(eoip);

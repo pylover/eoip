@@ -36,7 +36,7 @@ typedef struct transport {
 
 
 ASYNC
-transportA(struct caio_task *self, struct transport *t);
+transport_initA(struct caio_task *self, struct transport *t);
 
 
 #endif  // TRANSPORT_H_

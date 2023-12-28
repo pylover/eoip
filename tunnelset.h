@@ -30,10 +30,6 @@ int
 tunnelset_load(struct tunnelset *tunnels);
 
 
-int
-tunnelset_openall(struct tunnelset *tunnels);
-
-
 void
 tunnelset_closeall(struct tunnelset *tunnels);
 

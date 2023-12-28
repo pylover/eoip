@@ -234,20 +234,3 @@ tunnelset_closeall(struct tunnelset *tunnels) {
         tunnel_close(tunnels->first + i);
     }
 }
-
-
-int
-tunnelset_openall(struct tunnelset *tunnels) {
-    int i;
-
-    for (i = 0; i < tunnels->count; i++) {
-        if (tunnel_open(tunnels->first + i)) {
-            goto failed;
-        }
-    }
-
-    return 0;
-failed:
-    tunnelset_closeall(tunnels);
-    return -1;
-}

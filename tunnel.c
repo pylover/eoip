@@ -24,7 +24,17 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <caio/caio.h>
+
 #include "tunnel.h"
+
+
+#undef CAIO_ARG1
+#undef CAIO_ARG2
+#undef CAIO_ENTITY
+#define CAIO_ENTITY tunnel
+#define CAIO_ARG1 struct transport*
+#include <caio/generic.c>  // NOLINT
 
 
 int
@@ -44,51 +54,64 @@ tunnel_close(struct tunnel *t) {
 }
 
 
-int
-tunnel_open(struct tunnel *t) {
+ASYNC
+tunnelA(caiotask_t *self, struct tunnel *t,
+        struct transport *transport) {
     struct ifreq ifr;
     int fd;
+    CAIO_BEGIN(self);
 
     if (t->fd > -1) {
-        return 0;
+        ERROR("Tunnel already initialized");
+        CAIO_THROW(self, errno);
     }
 
+try:
+    errno = 0;
+    t->fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
+    if (t->fd == -1) {
+        if (CAIO_MUSTWAITFD()) {
+            CAIO_WAITFD(self, t->fd, CAIO_IN | CAIO_OUT | CAIO_ET);
+            goto try;
+        }
+        ERROR("open_tun: /dev/net/tun");
+        CAIO_THROW(self, errno);
+    }
+
+
+    /* Create and configure tunnel */
+    memset(&ifr, 0x0, sizeof(ifr));
+    ifr.ifr_flags = IFF_TAP|IFF_NO_PI;
+    strncpy(ifr.ifr_name, t->name, IFNAMSIZ);
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
         ERROR("socket()");
-        return -1;
+        CAIO_THROW(self, errno);
     }
-
-    t->fd = open("/dev/net/tun", O_RDWR);
-    if (t->fd < 0) {
-        ERROR("open_tun: /dev/net/tun");
-        goto failed;
-    }
-
-    memset(&ifr, 0x0, sizeof(ifr));
-
-    ifr.ifr_flags = IFF_TAP|IFF_NO_PI;
-    strncpy(ifr.ifr_name, t->name, IFNAMSIZ);
 
     if (ioctl(t->fd, TUNSETIFF, (void *)&ifr) < 0) {
+        close(fd);
         ERROR("ioctl-1");
-        goto failed;
+        CAIO_THROW(self, errno);
     }
 
     ifr.ifr_flags |= IFF_UP;
     ifr.ifr_flags |= IFF_RUNNING;
 
     if (ioctl(fd, SIOCSIFFLAGS, (void *)&ifr) < 0) {
+        close(fd);
         ERROR("ioctl-2");
-        goto failed;
+        CAIO_THROW(self, errno);
     }
     close(fd);
-    return 0;
 
-failed:
-    close(fd);
+    /* IO loop */
+    while (true) {
+        // TODO: IO
+    }
+
+    CAIO_FINALLY(self);
     if (t->fd > 0) {
         close(t->fd);
     }
-    return -1;
 }

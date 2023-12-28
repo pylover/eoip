@@ -25,8 +25,8 @@
 
 
 typedef struct eoip {
-    struct transport transport;
-    struct tunnelset *tunnels;
+    unsigned long packetsin;
+    unsigned long packetsout;
 } eoip_t;
 
 
@@ -34,11 +34,13 @@ typedef struct eoip {
 #undef CAIO_ARG2
 #undef CAIO_ENTITY
 #define CAIO_ENTITY eoip
+#define CAIO_ARG1 struct tunnelset*
+#define CAIO_ARG2 struct transport*
 #include <caio/generic.h>  // NOLINT
 
 
 int
-protocol(struct tunnelset *tunnels);
+protocol(struct tunnelset *tunnels, struct transport *transport);
 
 
 #endif  // PROTOCOL_H_
